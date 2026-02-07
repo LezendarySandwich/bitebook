@@ -19,6 +19,9 @@ export default ({ config }: ConfigContext) => ({
     bundleIdentifier: 'com.bitebook.app',
     deploymentTarget: '17.0',
   },
+  android: {
+    package: 'com.bitebook.app'
+  },
   plugins: [
     'expo-sqlite',
     [
