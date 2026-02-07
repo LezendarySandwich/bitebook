@@ -31,9 +31,9 @@ export function MessageList({ displayItems, streamingText, isStreaming }: Messag
     return <ToolCallBubble item={item.data} />;
   };
 
-  const getItemKey = (item: ChatDisplayItem) => {
+  const getItemKey = (item: ChatDisplayItem, index: number) => {
     if (item.type === 'message') return `msg_${item.data.id}`;
-    return `tc_${item.data.id}`;
+    return `tc_${index}_${item.data.id}`;
   };
 
   return (

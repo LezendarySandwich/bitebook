@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -17,19 +17,22 @@ import { CalorieRing } from '../components/dashboard/CalorieRing';
 import { DailySummary } from '../components/dashboard/DailySummary';
 import { WeeklySummary } from '../components/dashboard/WeeklySummary';
 import { FoodLogList } from '../components/dashboard/FoodLogList';
+import { EditFoodEntryModal } from '../components/dashboard/EditFoodEntryModal';
 import { QuickLogButton } from '../components/dashboard/QuickLogButton';
 import { EmptyState } from '../components/common/EmptyState';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { colors, spacing, typography } from '../theme';
+import { FoodEntry } from '../types/database';
 
 type NavigationProp = DrawerNavigationProp<RootDrawerParamList, 'Dashboard'>;
 
 export function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { todayCalories, weekCalories, weekDayCount, todayEntries, isLoading, loadDashboard } =
+  const { todayCalories, weekCalories, weekDayCount, todayEntries, isLoading, loadDashboard, updateFoodEntry, deleteFoodEntry } =
     useDashboardStore();
   const { calorieTarget } = useSettingsStore();
   const { createConversation } = useConversationStore();
+  const [editingEntry, setEditingEntry] = useState<FoodEntry | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -63,10 +66,23 @@ export function DashboardScreen() {
           />
         </View>
 
-        <FoodLogList entries={todayEntries} />
+        <FoodLogList entries={todayEntries} onEdit={setEditingEntry} />
       </ScrollView>
 
       <QuickLogButton onPress={handleQuickLog} />
+
+      <EditFoodEntryModal
+        entry={editingEntry}
+        onSave={async (id, updates) => {
+          await updateFoodEntry(id, updates);
+          setEditingEntry(null);
+        }}
+        onDelete={async (id) => {
+          await deleteFoodEntry(id);
+          setEditingEntry(null);
+        }}
+        onClose={() => setEditingEntry(null)}
+      />
     </View>
   );
 }

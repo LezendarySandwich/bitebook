@@ -11,9 +11,11 @@ interface DashboardState {
   isLoading: boolean;
 
   loadDashboard: () => Promise<void>;
+  updateFoodEntry: (id: number, updates: { name?: string; calories?: number; quantity?: number }) => Promise<void>;
+  deleteFoodEntry: (id: number) => Promise<void>;
 }
 
-export const useDashboardStore = create<DashboardState>((set) => ({
+export const useDashboardStore = create<DashboardState>((set, get) => ({
   todayCalories: 0,
   weekCalories: 0,
   weekDayCount: 0,
@@ -46,5 +48,15 @@ export const useDashboardStore = create<DashboardState>((set) => ({
     } catch {
       set({ isLoading: false });
     }
+  },
+
+  updateFoodEntry: async (id, updates) => {
+    await foodEntryRepo.updateFoodEntry(id, updates);
+    await get().loadDashboard();
+  },
+
+  deleteFoodEntry: async (id) => {
+    await foodEntryRepo.deleteFoodEntry(id);
+    await get().loadDashboard();
   },
 }));

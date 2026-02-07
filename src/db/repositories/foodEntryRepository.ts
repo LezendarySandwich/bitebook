@@ -92,6 +92,36 @@ export async function getWeekDayCount(): Promise<number> {
   return result?.count ?? 0;
 }
 
+export async function updateFoodEntry(
+  id: number,
+  updates: { name?: string; calories?: number; quantity?: number }
+): Promise<void> {
+  const db = await getDatabase();
+  const fields: string[] = [];
+  const values: (string | number)[] = [];
+
+  if (updates.name !== undefined) {
+    fields.push('name = ?');
+    values.push(updates.name);
+  }
+  if (updates.calories !== undefined) {
+    fields.push('calories = ?');
+    values.push(updates.calories);
+  }
+  if (updates.quantity !== undefined) {
+    fields.push('quantity = ?');
+    values.push(updates.quantity);
+  }
+
+  if (fields.length === 0) return;
+
+  values.push(id);
+  await db.runAsync(
+    `UPDATE food_entries SET ${fields.join(', ')} WHERE id = ?`,
+    ...values
+  );
+}
+
 export async function deleteFoodEntry(id: number): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM food_entries WHERE id = ?', id);

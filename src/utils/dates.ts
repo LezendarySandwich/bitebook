@@ -1,13 +1,17 @@
+function toSQLiteUTC(d: Date): string {
+  return d.toISOString().replace('T', ' ').slice(0, 19);
+}
+
 export function getStartOfDay(date: Date = new Date()): string {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return toSQLiteUTC(d);
 }
 
 export function getEndOfDay(date: Date = new Date()): string {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
-  return d.toISOString();
+  return toSQLiteUTC(d);
 }
 
 export function getStartOfWeek(date: Date = new Date()): string {
@@ -16,7 +20,7 @@ export function getStartOfWeek(date: Date = new Date()): string {
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   d.setDate(diff);
   d.setHours(0, 0, 0, 0);
-  return d.toISOString();
+  return toSQLiteUTC(d);
 }
 
 export function getLastWeekRange(): { start: string; end: string } {
@@ -34,8 +38,8 @@ export function getLastWeekRange(): { start: string; end: string } {
   startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
 
   return {
-    start: startOfLastWeek.toISOString(),
-    end: endOfLastWeek.toISOString(),
+    start: toSQLiteUTC(startOfLastWeek),
+    end: toSQLiteUTC(endOfLastWeek),
   };
 }
 

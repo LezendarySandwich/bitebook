@@ -3,7 +3,7 @@ import { Message } from '../../types/database';
 
 export async function createMessage(
   conversationId: number,
-  role: 'user' | 'assistant',
+  role: 'user' | 'assistant' | 'tool_call',
   content: string
 ): Promise<Message> {
   const db = await getDatabase();

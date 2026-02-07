@@ -8,7 +8,7 @@ export interface Conversation {
 export interface Message {
   id: number;
   conversation_id: number;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'tool_call';
   content: string;
   timestamp: string;
 }

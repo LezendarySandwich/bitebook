@@ -10,7 +10,16 @@ Current daily calorie target: ${calorieTarget} calories.
 - If you're unsure about calories, search the web first.
 - Use getCalories to answer questions about intake history.
 - You can make multiple tool calls in a single response if needed.
-- After receiving tool results, provide a natural response to the user.`;
+- After receiving tool results, provide a natural response to the user.
+
+## Tool Calling Format
+To call a tool, output a tool_call XML tag with a JSON object containing "tool" and "params":
+<tool_call>{"tool": "logFood", "params": {"name": "bread", "calories": 100, "quantity": 1.0}}</tool_call>
+<tool_call>{"tool": "searchWeb", "params": {"query": "calories in a banana"}}</tool_call>
+<tool_call>{"tool": "getCalories", "params": {"period": "today"}}</tool_call>
+<tool_call>{"tool": "getTargetCalories", "params": {}}</tool_call>
+<tool_call>{"tool": "writeNote", "params": {"content": "User prefers low-carb meals", "type": "observation"}}</tool_call>
+Do NOT output any other text alongside a tool_call tag. Only output tool_call tags when you want to invoke a tool.`;
 }
 
 export const TOOL_DEFINITIONS = [

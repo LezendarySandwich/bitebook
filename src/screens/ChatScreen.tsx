@@ -10,7 +10,6 @@ import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { RootDrawerParamList } from '../navigation/types';
 import { useChatStore } from '../stores/useChatStore';
 import { useConversationStore } from '../stores/useConversationStore';
-import { useLLMStore } from '../stores/useLLMStore';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
 import { EmptyState } from '../components/common/EmptyState';
@@ -37,7 +36,6 @@ export function ChatScreen() {
   } = useChatStore();
   const toolCallItems = useChatStore((s) => s.toolCallItems);
   const messages = useChatStore((s) => s.messages);
-  const { isModelLoaded } = useLLMStore();
   const { createConversation } = useConversationStore();
 
   const conversationId = route.params?.conversationId;
@@ -66,7 +64,7 @@ export function ChatScreen() {
     await chatManager.handleUserMessage(text, convId);
   };
 
-  const inputDisabled = isProcessing || !isModelLoaded;
+  const inputDisabled = isProcessing;
 
   if (!conversationId && !currentConversationId) {
     return (

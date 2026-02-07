@@ -53,6 +53,23 @@ const migrations: Migration[] = [
       `INSERT OR IGNORE INTO settings (key, value) VALUES ('active_model', '');`,
     ],
   },
+  {
+    version: 2,
+    up: [
+      `CREATE TABLE IF NOT EXISTS messages_v2 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'tool_call')),
+        content TEXT NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+      );`,
+      `INSERT INTO messages_v2 (id, conversation_id, role, content, timestamp)
+        SELECT id, conversation_id, role, content, timestamp FROM messages;`,
+      `DROP TABLE messages;`,
+      `ALTER TABLE messages_v2 RENAME TO messages;`,
+    ],
+  },
 ];
 
 export async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {

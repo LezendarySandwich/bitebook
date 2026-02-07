@@ -1,6 +1,7 @@
 import { llmService } from './LLMService';
 import { buildSystemPrompt, TOOL_DEFINITIONS } from './systemPrompt';
 import { executeToolCall } from './toolExecutor';
+import { parseToolCalls, stripToolCalls } from './toolParser';
 import { useChatStore } from '../stores/useChatStore';
 import { useSettingsStore } from '../stores/useSettingsStore';
 import { useModelStore } from '../stores/useModelStore';
@@ -28,7 +29,7 @@ class ChatManager {
     const { activeModelId } = useModelStore.getState();
 
     chatStore.setIsProcessing(true);
-    chatStore.clearToolCalls();
+    chatStore.clearToolCalls(); // Clear any leftover in-flight items
 
     // Ensure model is loaded
     if (!llmService.isLoaded()) {
@@ -59,10 +60,12 @@ class ChatManager {
     const systemPrompt = buildSystemPrompt(calorieTarget);
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
-      ...recentMessages.map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
+      ...recentMessages
+        .filter((m) => m.role !== 'tool_call')
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        })),
     ];
 
     // Iterative tool-calling loop
@@ -74,13 +77,16 @@ class ChatManager {
       chatStore.setIsStreaming(true);
       chatStore.setStreamingText('');
 
+      let fullText = '';
       let result;
       try {
         result = await llmService.completion(messages, {
           tools: TOOL_DEFINITIONS,
           onToken: (token) => {
-            const currentText = useChatStore.getState().streamingText;
-            useChatStore.getState().setStreamingText(currentText + token);
+            fullText += token;
+            // Strip any <tool_call>...</tool_call> content from visible streaming text
+            const visibleText = stripToolCalls(fullText);
+            useChatStore.getState().setStreamingText(visibleText);
           },
         });
       } catch (error) {
@@ -94,10 +100,16 @@ class ChatManager {
 
       chatStore.setIsStreaming(false);
 
-      // Check for native tool calls
+      // Check for native tool calls first
       if (result.tool_calls && result.tool_calls.length > 0) {
         // Add the assistant message with tool calls to context (not to UI)
         messages.push({ role: 'assistant', content: result.text || '' });
+
+        // Persist any accompanying text as a visible message before tool execution
+        const preToolText = stripToolCalls(result.text).trim();
+        if (preToolText) {
+          await useChatStore.getState().addAssistantMessage(preToolText);
+        }
 
         for (const nativeToolCall of result.tool_calls) {
           const toolName = nativeToolCall.function.name;
@@ -121,12 +133,18 @@ class ChatManager {
           const toolCall: ToolCall = { tool: toolName, params: toolParams };
           const toolResult = await executeToolCall(toolCall);
 
-          // Update tool call in UI with result
-          useChatStore.getState().updateToolCall(tcId, {
-            status: toolResult.success ? 'done' : 'error',
+          const completedStatus = toolResult.success ? 'done' : 'error';
+
+          // Persist completed tool call to DB and remove from in-memory
+          await useChatStore.getState().addToolCallMessage({
+            id: tcId,
+            toolName,
+            params: toolParams,
+            status: completedStatus as 'done' | 'error',
             result: toolResult.data,
             error: toolResult.error,
           });
+          useChatStore.getState().removeToolCall(tcId);
 
           // Add tool result to message context for next LLM turn
           messages.push({
@@ -140,14 +158,61 @@ class ChatManager {
         continue;
       }
 
+      // Fallback: parse tool calls from text for models without native function calling
+      const textToolCalls = parseToolCalls(result.text);
+      if (textToolCalls.length > 0) {
+        // Add the assistant text (with tool calls) to context
+        messages.push({ role: 'assistant', content: result.text || '' });
+
+        // Persist any accompanying text as a visible message before tool execution
+        const preToolText = stripToolCalls(result.text).trim();
+        if (preToolText) {
+          await useChatStore.getState().addAssistantMessage(preToolText);
+        }
+
+        for (const parsedToolCall of textToolCalls) {
+          const tcId = `tc_${++toolCallCounter}`;
+
+          useChatStore.getState().addToolCall({
+            id: tcId,
+            toolName: parsedToolCall.tool,
+            params: parsedToolCall.params,
+            status: 'running',
+          });
+
+          const toolResult = await executeToolCall(parsedToolCall);
+
+          const completedStatus = toolResult.success ? 'done' : 'error';
+
+          // Persist completed tool call to DB and remove from in-memory
+          await useChatStore.getState().addToolCallMessage({
+            id: tcId,
+            toolName: parsedToolCall.tool,
+            params: parsedToolCall.params,
+            status: completedStatus as 'done' | 'error',
+            result: toolResult.data,
+            error: toolResult.error,
+          });
+          useChatStore.getState().removeToolCall(tcId);
+
+          messages.push({
+            role: 'tool',
+            content: JSON.stringify(toolResult.data ?? { error: toolResult.error }),
+            tool_call_id: parsedToolCall.tool,
+          });
+        }
+
+        // Continue loop — LLM will see tool results and respond
+        continue;
+      }
+
       // No tool calls — this is the final response
-      const responseText = result.text.trim();
+      const responseText = stripToolCalls(result.text).trim();
       if (responseText) {
         await useChatStore.getState().addAssistantMessage(responseText);
       }
 
-      // Clear tool calls after final response is added
-      useChatStore.getState().clearToolCalls();
+      // Tool calls stay visible until the next user message (cleared at start of handleUserMessage)
       break;
     }
 

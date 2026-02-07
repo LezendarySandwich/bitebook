@@ -37,7 +37,11 @@ export function parseToolCalls(text: string): ToolCall[] {
 }
 
 export function stripToolCalls(text: string): string {
-  return text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '').trim();
+  // Strip complete <tool_call>...</tool_call> tags
+  let stripped = text.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '');
+  // Strip incomplete/in-progress <tool_call> tags (no closing tag yet, e.g. during streaming)
+  stripped = stripped.replace(/<tool_call>[\s\S]*$/g, '');
+  return stripped.trim();
 }
 
 export function hasToolCalls(text: string): boolean {
